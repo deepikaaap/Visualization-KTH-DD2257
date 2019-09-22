@@ -33,9 +33,15 @@ StreamlineIntegrator::StreamlineIntegrator()
     , outMesh("meshOut")
     , propStartPoint("startPoint", "Start Point", vec2(0.5, 0.5), vec2(-1), vec2(1), vec2(0.1))
     , propSeedMode("seedMode", "Seeds")
-    , mouseMoveStart(
-          "mouseMoveStart", "Move Start", [this](Event *e) { eventMoveStart(e); },
-          MouseButton::Left, MouseState::Press | MouseState::Move)
+    , mouseMoveStart("mouseMoveStart", "Move Start", [this](Event *e) { eventMoveStart(e); },
+                     MouseButton::Left, MouseState::Press | MouseState::Move)
+    , stepSize("stepSize", "Step size", 1, 0, 2, 1)
+    , integrationSteps("integrationSteps", "Number of integrations", 1, 1, 100, 1)
+    , backwardDirection("backwardDirection", "Backward Direction")
+    , integrateDirectionField("integrateDirectionField", "Integrate Direction Field")
+    , maxArcLength("maxArcLength", "Max Arc Length",1,0,sqrt(8),1)
+    , maxIntegrationSteps("maxIntegrationSteps", "Max Integration Steps")
+    , speedThreshold("speedThreshold", "Speed Threshold")
 // TODO: Initialize additional properties
 // propertyName("propertyIdentifier", "Display Name of the Propery",
 // default value (optional), minimum value (optional), maximum value (optional),
@@ -51,6 +57,13 @@ StreamlineIntegrator::StreamlineIntegrator()
     addProperty(propSeedMode);
     addProperty(propStartPoint);
     addProperty(mouseMoveStart);
+    addProperty(stepSize);
+    addProperty(integrationSteps);
+    addProperty(backwardDirection);
+    addProperty(integrateDirectionField);
+    addProperty(maxArcLength);
+    addProperty(speedThreshold);
+    addProperty(maxIntegrationSteps);
 
     // TODO: Register additional properties
     // addProperty(propertyName);
@@ -99,11 +112,13 @@ void StreamlineIntegrator::process() {
     if (propSeedMode.get() == 0) {
         auto indexBufferPoints = mesh->addIndexBuffer(DrawType::Points, ConnectivityType::None);
         // Draw start point
-        vec2 startPoint = propStartPoint.get();
+		// Was originally vec2, changing to dvec2 to match the other part of the code.
+        dvec2 startPoint = propStartPoint.get();
         vertices.push_back(
             {vec3(startPoint.x, startPoint.y, 0), vec3(0), vec3(0), vec4(0, 0, 0, 1)});
         indexBufferPoints->add(static_cast<std::uint32_t>(0));
         // TODO: Create one stream line from the given start point
+        DrawStreamLine(vectorField, startPoint, indexBufferPoints.get(), vertices);
     } else {
         // TODO: Seed multiple stream lines either randomly or using a uniform grid
         // (TODO: Bonus, sample randomly according to magnitude of the vector field)
@@ -113,4 +128,26 @@ void StreamlineIntegrator::process() {
     outMesh.setData(mesh);
 }
 
+	void StreamlineIntegrator::DrawStreamLine(const VectorField2 &vectorField, dvec2 &position,
+                                          IndexBufferRAM *indexBufferPoints,
+                                          std::vector<BasicMesh::Vertex> &vertices) {
+		// Starting index may have to be changed while drawing multiple lines
+		for (int i = 0; i < integrationSteps; i++) {
+			dvec2 new_pos = Integrator::RK4(vectorField, position, stepSize,
+                                                   backwardDirection, integrateDirectionField);
+            double arclength = sqrt(pow(new_pos.y - propStartPoint.get().y, 2) +
+                                    pow(new_pos.x - propStartPoint.get().x, 2));
+            if (arclength > maxArcLength) {
+                    break;
+			}
+            if ((vectorField.getBBoxMin()[0] < new_pos.x < vectorField.getBBoxMax()[0]) ||
+                (vectorField.getBBoxMin()[1] < new_pos.x < vectorField.getBBoxMax()[1])) {
+                            break;
+			}
+			indexBufferPoints->add(static_cast<std::uint32_t>(i));
+			vertices.push_back({vec3(new_pos.x, new_pos.y, 0), vec3(1), vec3(1), vec4(0, 0, 1, 1)});
+			position = new_pos;
+		}
+	}
 }  // namespace inviwo
+
