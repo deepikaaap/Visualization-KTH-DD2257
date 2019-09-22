@@ -99,13 +99,13 @@ void EulerRK4Comparison::process() {
     // TODO: Implement the Euler and Runge-Kutta of 4th order integration schemes
     // and then integrate forward for a specified number of integration steps and a given stepsize
     // (these should be additional properties of the processor)
-    Integrator integrator = Integrator();
+    //Integrator integrator = Integrator();
 
     dvec2 startPoint_rk4 = propStartPoint.get();
     vertices_rk4.push_back({vec3(startPoint_rk4.x, startPoint_rk4.y, 0), vec3(1), vec3(1), vec4(1, 1, 1, 0)});
     for (int i = 0; i < integrationSteps; i++) {
 
-        dvec2 new_pos_euler = integrator.Euler(vectorField, startPoint, stepSize);
+        dvec2 new_pos_euler = Integrator::Euler(vectorField, startPoint, stepSize, 0, 0);
         
         indexBufferEuler->add(static_cast<std::uint32_t>(i));
         indexBufferPoints->add(static_cast<std::uint32_t>(i));
@@ -118,7 +118,7 @@ void EulerRK4Comparison::process() {
 
     for (int i = 0; i < integrationSteps; i++) {
 
-        dvec2 new_pos_rk4 = integrator.RK4(vectorField, startPoint_rk4, stepSize);
+        dvec2 new_pos_rk4 = Integrator::RK4(vectorField, startPoint_rk4, stepSize, 0, 0);
         indexBufferRK->add(static_cast<std::uint32_t>(i+integrationSteps+1));
         indexBufferPoints->add(static_cast<std::uint32_t>(i+integrationSteps));
         vertices_rk4.push_back(
