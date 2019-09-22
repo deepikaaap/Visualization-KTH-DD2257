@@ -31,9 +31,8 @@ EulerRK4Comparison::EulerRK4Comparison()
     , inData("inData")
     , outMesh("meshOut")
     , propStartPoint("startPoint", "Start Point", vec2(0.5, 0.5), vec2(0), vec2(1024), vec2(0.5))
-    , mouseMoveStart(
-          "mouseMoveStart", "Move Start", [this](Event* e) { eventMoveStart(e); },
-          MouseButton::Left, MouseState::Press | MouseState::Move)
+    , mouseMoveStart("mouseMoveStart", "Move Start", [this](Event* e) { eventMoveStart(e); },
+                     MouseButton::Left, MouseState::Press | MouseState::Move)
     , stepSize("stepSize", "Step size", 1, 0, 2, 1)
     , integrationSteps("integrationSteps", "Number of integrations", 1, 1, 100, 1)
 // TODO: Initialize additional properties
@@ -53,7 +52,6 @@ EulerRK4Comparison::EulerRK4Comparison()
     // addProperty(propertyName);
     addProperty(stepSize);
     addProperty(integrationSteps);
-
 }
 
 void EulerRK4Comparison::eventMoveStart(Event* event) {
@@ -86,6 +84,7 @@ void EulerRK4Comparison::process() {
     // Initialize mesh, vertices and index buffers for the two streamlines and the points
     auto mesh = std::make_shared<BasicMesh>();
     std::vector<BasicMesh::Vertex> vertices;
+	std::vector<BasicMesh::Vertex> vertices_rk4;
     auto indexBufferEuler = mesh->addIndexBuffer(DrawType::Lines, ConnectivityType::Strip);
     auto indexBufferRK = mesh->addIndexBuffer(DrawType::Lines, ConnectivityType::Strip);
     auto indexBufferPoints = mesh->addIndexBuffer(DrawType::Points, ConnectivityType::None);
@@ -101,34 +100,35 @@ void EulerRK4Comparison::process() {
     // and then integrate forward for a specified number of integration steps and a given stepsize
     // (these should be additional properties of the processor)
     Integrator integrator = Integrator();
-    
-    /*
-    for (int i =0; i<integrationSteps; i++) {
+
+    dvec2 startPoint_rk4 = propStartPoint.get();
+    vertices_rk4.push_back({vec3(startPoint_rk4.x, startPoint_rk4.y, 0), vec3(1), vec3(1), vec4(1, 1, 1, 0)});
+    for (int i = 0; i < integrationSteps; i++) {
+
+        dvec2 new_pos_euler = integrator.Euler(vectorField, startPoint, stepSize);
         
-        dvec2 new_pos = integrator.Euler(vectorField, startPoint, stepSize);
         indexBufferEuler->add(static_cast<std::uint32_t>(i));
-        indexBufferRK->add(static_cast<std::uint32_t>(i));
-        vertices.push_back({vec3(new_pos.x, new_pos.y, 0), vec3(1), vec3(1), vec4(0, 0, 0, 1)});
-        startPoint = new_pos;
-        
+        indexBufferPoints->add(static_cast<std::uint32_t>(i));
+        vertices.push_back({vec3(new_pos_euler.x, new_pos_euler.y, 0), vec3(1), vec3(1), vec4(0, 0, 1, 1)});
+        startPoint = new_pos_euler;
     }
-    */
-    for (int i =0; i<integrationSteps; i++) {
-        
-        dvec2 new_pos = integrator.Euler(vectorField, startPoint, stepSize);
-        indexBufferRK->add(static_cast<std::uint32_t>(i));
-        vertices.push_back({vec3(new_pos.x, new_pos.y, 0), vec3(1), vec3(1), vec4(0, 0, 1, 1)});
-        startPoint = new_pos;
-        
-    }
-    
-
-    
-    // Integrator::Rk4(vectorField, dims, startPoint, ...);
-
+    indexBufferPoints->add(static_cast<std::uint32_t>(integrationSteps));
+    vertices.push_back({vec3(startPoint.x, startPoint.y, 0), vec3(1), vec3(1), vec4(0, 0, 0, 0)});
     mesh->addVertices(vertices);
+
+    for (int i = 0; i < integrationSteps; i++) {
+
+        dvec2 new_pos_rk4 = integrator.RK4(vectorField, startPoint_rk4, stepSize);
+        indexBufferRK->add(static_cast<std::uint32_t>(i+integrationSteps+1));
+        indexBufferPoints->add(static_cast<std::uint32_t>(i+integrationSteps));
+        vertices_rk4.push_back(
+            {vec3(new_pos_rk4.x, new_pos_rk4.y, 0), vec3(1), vec3(1), vec4(0, 0, 0, 1)});
+        startPoint_rk4 = new_pos_rk4;
+    }
+
+	
+    mesh->addVertices(vertices_rk4);
     outMesh.setData(mesh);
 }
 
-    
 }  // namespace inviwo
