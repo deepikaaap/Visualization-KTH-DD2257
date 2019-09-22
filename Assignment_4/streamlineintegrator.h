@@ -67,7 +67,9 @@ protected:
     /// Our main computation function
     virtual void process() override;
     void eventMoveStart(Event* event);
-
+    void DrawStreamLine(const VectorField2 &vectorField, dvec2 &position,
+                        IndexBufferRAM *indexBufferPoints,
+                        std::vector<BasicMesh::Vertex> &vertices);
     // (TODO: You could define some helper functions here,
     // e.g. a function creating a single streamline from one seed point)
 
@@ -83,6 +85,13 @@ public:
     FloatVec2Property propStartPoint;
     TemplateOptionProperty<int> propSeedMode;
     EventProperty mouseMoveStart;
+    FloatProperty stepSize;
+    IntProperty integrationSteps;
+    BoolProperty backwardDirection;
+    BoolProperty integrateDirectionField;
+    FloatProperty maxArcLength;
+    IntProperty maxIntegrationSteps;
+    FloatProperty speedThreshold;
 
     // TODO: Declare additional properties
     // Some types that you might need are given below
