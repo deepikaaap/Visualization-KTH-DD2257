@@ -39,7 +39,7 @@ StreamlineIntegrator::StreamlineIntegrator()
     , integrationSteps("integrationSteps", "Number of integrations", 1, 1, 100, 1)
     , backwardDirection("backwardDirection", "Backward Direction")
     , integrateDirectionField("integrateDirectionField", "Integrate Direction Field")
-    , maxArcLength("maxArcLength", "Max Arc Length",1,0,sqrt(8),1)
+    , maxArcLength("maxArcLength", "Max Arc Length", 1, 0, sqrt(8), 1)
     , maxIntegrationSteps("maxIntegrationSteps", "Max Integration Steps")
     , speedThreshold("speedThreshold", "Speed Threshold")
 // TODO: Initialize additional properties
@@ -112,7 +112,7 @@ void StreamlineIntegrator::process() {
     if (propSeedMode.get() == 0) {
         auto indexBufferPoints = mesh->addIndexBuffer(DrawType::Points, ConnectivityType::None);
         // Draw start point
-		// Was originally vec2, changing to dvec2 to match the other part of the code.
+        // Was originally vec2, changing to dvec2 to match the other part of the code.
         dvec2 startPoint = propStartPoint.get();
         vertices.push_back(
             {vec3(startPoint.x, startPoint.y, 0), vec3(0), vec3(0), vec4(0, 0, 0, 1)});
@@ -128,26 +128,37 @@ void StreamlineIntegrator::process() {
     outMesh.setData(mesh);
 }
 
-	void StreamlineIntegrator::DrawStreamLine(const VectorField2 &vectorField, dvec2 &position,
+void StreamlineIntegrator::DrawStreamLine(const VectorField2 &vectorField, dvec2 &position,
                                           IndexBufferRAM *indexBufferPoints,
                                           std::vector<BasicMesh::Vertex> &vertices) {
-		// Starting index may have to be changed while drawing multiple lines
-		for (int i = 0; i < integrationSteps; i++) {
-			dvec2 new_pos = Integrator::RK4(vectorField, position, stepSize,
-                                                   backwardDirection, integrateDirectionField);
-            double arclength = sqrt(pow(new_pos.y - propStartPoint.get().y, 2) +
-                                    pow(new_pos.x - propStartPoint.get().x, 2));
-            if (arclength > maxArcLength) {
-                    break;
-			}
-            if ((vectorField.getBBoxMin()[0] < new_pos.x < vectorField.getBBoxMax()[0]) ||
-                (vectorField.getBBoxMin()[1] < new_pos.x < vectorField.getBBoxMax()[1])) {
-                            break;
-			}
-			indexBufferPoints->add(static_cast<std::uint32_t>(i));
-			vertices.push_back({vec3(new_pos.x, new_pos.y, 0), vec3(1), vec3(1), vec4(0, 0, 1, 1)});
-			position = new_pos;
+    // Starting index may have to be changed while drawing multiple lines
+    for (int i = 0; i < integrationSteps; i++) {
+        dvec2 new_pos = Integrator::RK4(vectorField, position, stepSize, backwardDirection,
+                                        integrateDirectionField);
+		// length of the arc from the start point to the current position
+        double arclength = sqrt(pow(new_pos.y - propStartPoint.get().y, 2) +
+                                pow(new_pos.x - propStartPoint.get().x, 2));
+		// check for arc length being within the limits
+        if (arclength > maxArcLength) {
+            break;
+        }
+		// check for the new position being within the boundaries of the vector field
+        if ((vectorField.getBBoxMin()[0] < new_pos.x < vectorField.getBBoxMax()[0]) ||
+            (vectorField.getBBoxMin()[1] < new_pos.x < vectorField.getBBoxMax()[1])) {
+            break;
+        }
+		// check to stop integration for zero vector field
+        if (new_pos == position) {
+            break;
 		}
-	}
+		// check to stop integration for slow velocity(being below the speedThreshold)
+        if (double(stepSize) * (sqrt(pow(new_pos.x - position.x, 2) + pow(new_pos.y - position.y, 2)) < speedThreshold)) {
+            break;
+		}
+       
+		indexBufferPoints->add(static_cast<std::uint32_t>(i));
+        vertices.push_back({vec3(new_pos.x, new_pos.y, 0), vec3(1), vec3(1), vec4(0, 0, 1, 1)});
+        position = new_pos;
+    }
+}
 }  // namespace inviwo
-
