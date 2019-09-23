@@ -17,26 +17,28 @@
 #include <labutils/scalarvectorfield.h>
 
 namespace inviwo {
-
-class IVW_MODULE_LABSTREAMLINES_API Integrator {
-
-public:
-    // Construction / Deconstruction
-public:
-    Integrator() {}
-    virtual ~Integrator() = default;
-
-    // Methods
-public:
     
-    dvec2 Euler(const VectorField2& vectorField, const dvec2& position, const double stepSize);
-    dvec2 RK4(const VectorField2& vectorField, const dvec2& position, const double stepSize);
-    // TODO: Implement the methods below (one integration step with either Euler or
-    // Runge-Kutte of 4th order integration method)
-    // Pass any other properties that influence the integration process
-    // Examples would be the stepsize, inegreation direction, ...
-    // static dvec2 RK4(const VectorField2& vectorField, const dvec2& position, ...);
-    // static dvec2 Euler(const VectorField2& vectorField, const dvec2& position, ...);
-};
-
+    class IVW_MODULE_LABSTREAMLINES_API Integrator {
+        
+    public:
+        // Construction / Deconstruction
+    public:
+        Integrator() {}
+        virtual ~Integrator() = default;
+        
+        // Methods
+    public:
+        static dvec2 Euler(const VectorField2& vectorField, const dvec2& position,
+                           const double stepSize, bool backwardDirection, bool integrateDirectionField);
+        static dvec2 RK4(const VectorField2& vectorField, const dvec2& position, const double stepSize,
+                         bool backwardDirection, bool integrateDirectionField);
+        
+        // TODO: Implement the methods below (one integration step with either Euler or
+        // Runge-Kutte of 4th order integration method)
+        // Pass any other properties that influence the integration process
+        // Examples would be the stepsize, inegreation direction, ...
+        // static dvec2 RK4(const VectorField2& vectorField, const dvec2& position, ...);
+        // static dvec2 Euler(const VectorField2& vectorField, const dvec2& position, ...);
+    };
+    
 }  // namespace inviwo

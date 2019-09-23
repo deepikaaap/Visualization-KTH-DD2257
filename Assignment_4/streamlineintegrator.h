@@ -1,6 +1,6 @@
 /*********************************************************************
  *  Author  : Himangshu Saikia
- *  Init    : Tuesday, September 19, 2017 - 15:08:24
+ *  Init    : Tuesday, September 19, 2017 - 15:08:33
  *
  *  Project : KTH Inviwo Modules
  *
@@ -11,21 +11,25 @@
 #pragma once
 
 #include <inviwo/core/common/inviwo.h>
+#include <inviwo/core/datastructures/geometry/basicmesh.h>
+#include <inviwo/core/datastructures/volume/volumeram.h>
 #include <inviwo/core/ports/meshport.h>
 #include <inviwo/core/ports/volumeport.h>
 #include <inviwo/core/processors/processor.h>
+#include <inviwo/core/properties/boolproperty.h>
+#include <inviwo/core/properties/compositeproperty.h>
 #include <inviwo/core/properties/eventproperty.h>
+#include <inviwo/core/properties/optionproperty.h>
 #include <inviwo/core/properties/ordinalproperty.h>
 #include <labstreamlines/labstreamlinesmoduledefine.h>
 #include <labutils/scalarvectorfield.h>
 
 namespace inviwo {
     
-    /** \docpage{org.inviwo.EulerRK4Comparison, Euler RK4 Comparison}
-     ![](org.inviwo.EulerRK4Comparison.png?classIdentifier=org.inviwo.EulerRK4Comparison)
+    /** \docpage{org.inviwo.StreamlineIntegrator, Streamline Integrator}
+     ![](org.inviwo.StreamlineIntegrator.png?classIdentifier=org.inviwo.StreamlineIntegrator)
      
-     Comparison of the Euler and Runge-Kutta of 4th order integration schemes
-     by computation of streamlines in a given vectorfield
+     Processor to integrate streamlines.
      
      ### Inports
      * __data__ The input here is 2-dimensional vector field (with vectors of
@@ -36,22 +40,23 @@ namespace inviwo {
      will be processed.
      
      ### Outports
-     * __outMesh__ The output mesh contains points and linesegments for the
-     two streamlines computed with different integration schemes and both
-     starting at a given start point
+     * __outMesh__ The output mesh contains linesegments making up either a single or
+     multiple stream lines
      
      ### Properties
+     * __propSeedMode__ Mode for the number of seeds, either a single start point
+     or multiple
      * __propStartPoint__ Location of the start point
-     * __mouseMoveStart__ Move the start point when a selected mouse button is pressed
-     (default left)
+     * __mouseMoveStart__ Move the start point when a selected mouse button is
+     pressed (default left)
      */
-    class IVW_MODULE_LABSTREAMLINES_API EulerRK4Comparison : public Processor {
+    
+    class IVW_MODULE_LABSTREAMLINES_API StreamlineIntegrator : public Processor {
         
-    public:
         // Construction / Deconstruction
     public:
-        EulerRK4Comparison();
-        virtual ~EulerRK4Comparison() = default;
+        StreamlineIntegrator();
+        virtual ~StreamlineIntegrator() = default;
         
         // Methods
     public:
@@ -62,29 +67,40 @@ namespace inviwo {
         /// Our main computation function
         virtual void process() override;
         void eventMoveStart(Event* event);
-        
+        void DrawStreamLine(int index, const VectorField2 &vectorField, const dvec2 &position,
+                            IndexBufferRAM *indexBufferPoints,IndexBufferRAM *indexBufferLines,
+                            std::vector<BasicMesh::Vertex> &vertices);
+        // (TODO: You could define some helper functions here,
+        // e.g. a function creating a single streamline from one seed point)
         
         // Ports
     public:
-        // Input data
+        // Input Vector Field
         VolumeInport inData;
-        
         // Output mesh
         MeshOutport outMesh;
         
         // Properties
     public:
         FloatVec2Property propStartPoint;
+        TemplateOptionProperty<int> propSeedMode;
         EventProperty mouseMoveStart;
-        
-        // TODO: Declare additional properties
-        // IntProperty properyName;
-        // FloatProperty propertyName2;
-        
         FloatProperty stepSize;
         IntProperty integrationSteps;
+        BoolProperty backwardDirection;
+        BoolProperty integrateDirectionField;
+        FloatProperty maxArcLength;
+        IntProperty maxIntegrationSteps;
+        FloatProperty speedThreshold;
+        IntProperty nSeedLines; 
         
-        
+        // TODO: Declare additional properties
+        // Some types that you might need are given below
+        // IntProperty properyName;
+        // FloatProperty propertyName2;
+        // IntVec2Property propertyName3;
+        // TemplateOptionProperty<int> propertyName4;
+        // BoolProperty propertyName5;
         
         // Attributes
     private:
