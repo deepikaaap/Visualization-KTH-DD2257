@@ -129,5 +129,4 @@ namespace inviwo {
         mesh->addVertices(vertices);
         outMesh.setData(mesh);
     }
-    
 }  // namespace inviwo
