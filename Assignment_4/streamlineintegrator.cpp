@@ -40,9 +40,12 @@ namespace inviwo {
     , backwardDirection("backwardDirection", "Backward Direction")
     , integrateDirectionField("integrateDirectionField", "Integrate Direction Field")
     , maxArcLength("maxArcLength", "Max Arc Length",1,0,sqrt(8),1)
-    , maxIntegrationSteps("maxIntegrationSteps", "Max Integration Steps")
     , speedThreshold("speedThreshold", "Speed Threshold")
-    , nSeedLines("nSeedLines", "Number of stream lines", 1, 1, 100, 1)
+    , samplingType("samplingType", "Sampling")
+    , nSeedLines("nSeedLines", "Number of stream lines", 1, 1, 1000, 1)
+    , xSeed("xSeed", "# x-grids", 1, 0, 50, 1)
+    , ySeed("ySeed", "# y-grids", 1, 0, 50, 1)
+    
     // TODO: Initialize additional properties
     // propertyName("propertyIdentifier", "Display Name of the Propery",
     // default value (optional), minimum value (optional), maximum value (optional),
@@ -64,8 +67,13 @@ namespace inviwo {
         addProperty(integrateDirectionField);
         addProperty(maxArcLength);
         addProperty(speedThreshold);
-        addProperty(maxIntegrationSteps);
+        samplingType.addOption("random", "Random sampling", 0);
+        samplingType.addOption("uniform", "Uniform sampling", 1);
+        samplingType.addOption("magnitude", "Magnitude based sampling", 2);
+        addProperty(samplingType);
         addProperty(nSeedLines);
+        addProperty(xSeed);
+        addProperty(ySeed); 
         
         // TODO: Register additional properties
         // addProperty(propertyName);
@@ -73,17 +81,29 @@ namespace inviwo {
         // Show properties for a single seed and hide properties for multiple seeds
         // (TODO)
         if (propSeedMode.get() == 0) {
-            util::hide(nSeedLines);
+            util::hide(nSeedLines, xSeed,ySeed, samplingType);
             util::show(propStartPoint, mouseMoveStart);
         }
+        samplingType.onChange([this](){
+            if(samplingType.get()==1){
+                util::show(xSeed,ySeed);
+                util::hide(nSeedLines);
+            }
+            else{
+                util::hide(xSeed,ySeed);
+                util::show(nSeedLines);
+                
+            }
+            
+        });
         propSeedMode.onChange([this]() {
             if (propSeedMode.get() == 0) {
-                util::hide(nSeedLines);
+                util::hide(nSeedLines, samplingType, xSeed, ySeed);
                 util::show(propStartPoint, mouseMoveStart);
                 
             } else {
                 util::hide(propStartPoint, mouseMoveStart);
-                util::show(nSeedLines);
+                util::show(nSeedLines, samplingType);
             }
         });
     }
@@ -110,7 +130,7 @@ namespace inviwo {
         
         // Retreive data in a form that we can access it
         auto vectorField = VectorField2::createFieldFromVolume(vol);
-        
+
         // The start point should be inside the volume (set maximum to the upper
         // right corner)
         auto mesh = std::make_shared<BasicMesh>();
@@ -129,17 +149,12 @@ namespace inviwo {
             DrawStreamLine(vectorField, startPoint, indexBufferPoints.get(), indexBufferLines.get(),vertices);
         }
         
-        else {
+        else if (samplingType.get()==0){
             srand(1);
             for(int i = 0; i <nSeedLines; i++) {
                 auto indexBufferPoints = mesh->addIndexBuffer(DrawType::Points, ConnectivityType::None);
                 auto indexBufferLines = mesh->addIndexBuffer(DrawType::Lines, ConnectivityType::Strip);
-                double start_x, start_y;
-                double lowest = -1, highest = 1;
-                double range = (highest - lowest);
-                start_x = lowest+ (double)rand()/(double) RAND_MAX * range;
-                start_y = lowest+ (double)rand()/(double) RAND_MAX * range;
-                dvec2 startPoint = {start_x, start_y};
+                dvec2 startPoint = generateRandomSample(vectorField);
                 indexBufferPoints->add(static_cast<std::uint32_t>(vertices.size()));
                 indexBufferLines->add(static_cast<std::uint32_t>(vertices.size()));
                 vertices.push_back({vec3(startPoint.x, startPoint.y, 0), vec3(0), vec3(0), vec4(0, 0, 0, 1)});
@@ -148,6 +163,46 @@ namespace inviwo {
             }
             // TODO: Seed multiple stream lines either randomly or using a uniform grid
             // (TODO: Bonus, sample randomly according to magnitude of the vector field)
+        }
+        else if(samplingType.get()==1) {
+            double x_range = vectorField.getBBoxMax()[0]-vectorField.getMinValue()[0];
+            double y_range = vectorField.getBBoxMax()[1]-vectorField.getMinValue()[1];
+            
+            for(int i=0; i< xSeed; i++){
+                double start_x = x_range / (xSeed+1) * (i+1) + vectorField.getMinValue()[0];
+                for(int j=0; j< ySeed; j++){
+                    auto indexBufferPoints = mesh->addIndexBuffer(DrawType::Points, ConnectivityType::None);
+                    auto indexBufferLines = mesh->addIndexBuffer(DrawType::Lines, ConnectivityType::Strip);
+                    
+                    double start_y = y_range / (ySeed+1) * (j+1) + vectorField.getMinValue()[1];
+                    dvec2 startPoint = {start_x, start_y};
+                    indexBufferPoints->add(static_cast<std::uint32_t>(vertices.size()));
+                    indexBufferLines->add(static_cast<std::uint32_t>(vertices.size()));
+                    vertices.push_back({vec3(startPoint.x, startPoint.y, 0), vec3(0), vec3(0), vec4(0, 0, 0, 1)});
+                    DrawStreamLine(vectorField, startPoint, indexBufferPoints.get(),indexBufferLines.get(), vertices);
+                }
+            }
+        }
+        else {
+            double totalMagnitude = getTotalMagnitude(vectorField);
+            int counter = 0;
+            while(counter < nSeedLines) {
+                dvec2 samplePoint = generateRandomSample(vectorField);
+                dvec2 value_samplePoint = vectorField.interpolate(samplePoint);
+                double normalizedMagnitude = sqrt(pow(value_samplePoint[0],2) + pow(value_samplePoint[1],2)) / totalMagnitude;
+                double randNum = (double)rand()/(double) RAND_MAX;
+                auto indexBufferPoints = mesh->addIndexBuffer(DrawType::Points, ConnectivityType::None);
+                auto indexBufferLines = mesh->addIndexBuffer(DrawType::Lines, ConnectivityType::Strip);
+                
+                if(randNum < normalizedMagnitude) {
+                    indexBufferPoints->add(static_cast<std::uint32_t>(vertices.size()));
+                    indexBufferLines->add(static_cast<std::uint32_t>(vertices.size()));
+                    vertices.push_back({vec3(samplePoint.x, samplePoint.y, 0), vec3(0), vec3(0), vec4(0, 0, 0, 1)});
+                    
+                    DrawStreamLine(vectorField, samplePoint, indexBufferPoints.get(),indexBufferLines.get(), vertices);
+                    counter++;
+                }
+            }
         }
         
         mesh->addVertices(vertices);
@@ -158,14 +213,11 @@ namespace inviwo {
                                               IndexBufferRAM *indexBufferPoints,
                                               IndexBufferRAM *indexBufferLines,
                                               std::vector<BasicMesh::Vertex> &vertices) {
-        // Starting index may have to be changed while drawing multiple lines
         double arclength = 0.0;
         dvec2 pos = position;
         for (int i = 0; i < integrationSteps; i++) {
             dvec2 new_pos = Integrator::RK4(vectorField, pos, stepSize,
                                             backwardDirection, integrateDirectionField);
-            LogProcessorInfo(i);
-            LogProcessorInfo(new_pos);
             
             arclength += sqrt(pow(new_pos.y - pos.y, 2) + pow(new_pos.x - pos.x, 2));
             
@@ -188,4 +240,31 @@ namespace inviwo {
             pos = new_pos;
         }
     }
+    
+    double StreamlineIntegrator::getTotalMagnitude(const VectorField2 &vectorField){
+        double maxMagnitude = 0.0;
+        double magnitude;
+        dvec2 maxPos;
+        for(int i = 0; i < vectorField.getNumVerticesPerDim()[0]; i++) {
+            for (int j = 0; j < vectorField.getNumVerticesPerDim()[1]; j++) {
+                dvec2 pos =vectorField.getValueAtVertex({i,j});
+                magnitude = sqrt(pow(pos[0],2)+ pow(pos[1],2));
+                if(magnitude > maxMagnitude) {
+                    maxMagnitude = magnitude;
+                    maxPos = {i,j};
+                }
+            }
+        }
+        return maxMagnitude;
+    }
+    
+    dvec2 StreamlineIntegrator::generateRandomSample(const VectorField2 &vectorField){
+        double start_x, start_y;
+        double range_x = (vectorField.getBBoxMax()[0] - vectorField.getBBoxMin()[0]);
+        double range_y = (vectorField.getBBoxMax()[1] - vectorField.getBBoxMin()[1]);
+        start_x = vectorField.getBBoxMin()[0]+ (double)rand()/(double) RAND_MAX * range_x;
+        start_y = vectorField.getBBoxMin()[1]+ (double)rand()/(double) RAND_MAX * range_y;
+        return {start_x, start_y};
+    }
+    
 }  // namespace inviwo

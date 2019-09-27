@@ -67,9 +67,11 @@ namespace inviwo {
         /// Our main computation function
         virtual void process() override;
         void eventMoveStart(Event* event);
-        void DrawStreamLine(int index, const VectorField2 &vectorField, const dvec2 &position,
+        void DrawStreamLine(const VectorField2 &vectorField, const dvec2 &position,
                             IndexBufferRAM *indexBufferPoints,IndexBufferRAM *indexBufferLines,
                             std::vector<BasicMesh::Vertex> &vertices);
+        dvec2 generateRandomSample(const VectorField2 &vectorField);
+        double getTotalMagnitude(const VectorField2 &vectorField);
         // (TODO: You could define some helper functions here,
         // e.g. a function creating a single streamline from one seed point)
         
@@ -90,9 +92,11 @@ namespace inviwo {
         BoolProperty backwardDirection;
         BoolProperty integrateDirectionField;
         FloatProperty maxArcLength;
-        IntProperty maxIntegrationSteps;
         FloatProperty speedThreshold;
-        IntProperty nSeedLines; 
+        TemplateOptionProperty<int> samplingType;
+        IntProperty nSeedLines;
+        IntProperty xSeed;
+        IntProperty ySeed;
         
         // TODO: Declare additional properties
         // Some types that you might need are given below
