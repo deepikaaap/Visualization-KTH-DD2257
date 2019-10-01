@@ -53,6 +53,10 @@ public:
 public:
     virtual const ProcessorInfo getProcessorInfo() const override;
     static const ProcessorInfo processorInfo_;
+    double convolution(const VectorField2& vectorField, const std::vector<dvec2>& forwardList, const std::vector<dvec2>& backwardList, const RGBAImage& inputImage);
+    double boxKernel(const int index);
+    std::vector<std::vector<int>> mapVectorToTextureField(const std::vector<dvec2>& vectorList, const dvec2 &dims,const VectorField2 &vectorField);
+    double LinearIntegralConvolution(const RGBAImage& inputImage, const std::vector<std::vector<int>>& forwardList, const std::vector<std::vector<int>>& backwardList,const int& filterStartIndex);
 
 protected:
     /// Our main computation function
@@ -78,6 +82,7 @@ public:
     // IntProperty prop1;
     // BoolProperty prop2;
     IntProperty kernelSize;
+    BoolProperty fastLIC;
 
     // Attributes
 private:

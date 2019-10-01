@@ -84,7 +84,7 @@ void NoiseTextureGenerator::process() {
             
             val = (double) rand()/(double) RAND_MAX * 256 ;
             if(black_white) {
-                val = (val > 127) ? 255 : 0; // if grayscale value is greater than 63, set to white. else black.
+                val = (val > 127) ? 255 : 0; // if grayscale value is greater than 127, set to white. else black.
             }
             // TODO: Randomly sample values for the texture, this produces the same gray value for
             // all pixels
@@ -95,7 +95,7 @@ void NoiseTextureGenerator::process() {
             
         }
     }
-
+    //LogProcessorInfo(outImage->get().x << "," << outImage->get().y);§
     texOut_.setData(outImage);
 }
 
